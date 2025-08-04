@@ -1,0 +1,297 @@
+{
+    "nodes": [
+      {
+        "parameters": {
+          "pollTimes": {
+            "item": [
+              {
+                "mode": "everyMinute"
+              }
+            ]
+          },
+          "triggerOn": "specificFolder",
+          "folderToWatch": {
+            "__rl": true,
+            "value": "{{ $env.GDRIVE_WATCH_FOLDER_ID }}",
+            "mode": "list"
+          },
+          "event": "fileCreated",
+          "options": {
+            "fileType": "all"
+          }
+        },
+        "id": "a91f0e5a-e963-4b6c-b21b-9311f560d49e",
+        "name": "Drive Trigger (New File)",
+        "type": "n8n-nodes-base.googleDriveTrigger",
+        "typeVersion": 1,
+        "position": [
+          -400,
+          100
+        ],
+        "credentials": {
+          "googleDriveOAuth2Api": {
+            "id": "tzsdXJ8viUF8DBm6",
+            "name": "Google Drive account"
+          }
+        }
+      },
+      {
+        "parameters": {
+          "authentication": "oAuth2",
+          "operation": "download",
+          "fileId": {
+            "__rl": true,
+            "value": "={{ $json.id }}",
+            "mode": "id"
+          },
+          "options": {}
+        },
+        "id": "26af96f5-ff1a-465f-899f-ff8c24c151c2",
+        "name": "Download File",
+        "type": "n8n-nodes-base.googleDrive",
+        "typeVersion": 1,
+        "position": [
+          -140,
+          -100
+        ]
+      },
+      {
+        "parameters": {
+          "requestMethod": "POST",
+          "url": "{{ $env.API_UPLOAD_URL }}",
+          "options": {
+            "bodyContentType": "multipart-form-data"
+          },
+          "bodyParametersUi": {
+            "parameter": [
+              {
+                "name": "user",
+                "value": "{{ $env.API_USER }}"
+              },
+              {
+                "name": "imageUrl",
+                "value": "=https://drive.google.com/uc?id={{ $json.id }}"
+              }
+            ]
+          },
+          "headerParametersUi": {
+            "parameter": [
+              {
+                "name": "X-API-Key",
+                "value": "{{ $env.API_KEY }}"
+              }
+            ]
+          }
+        },
+        "id": "b8ffdb64-994e-4abe-8ae5-cd222bd392c7",
+        "name": "Upload to API",
+        "type": "n8n-nodes-base.httpRequest",
+        "typeVersion": 2,
+        "position": [
+          100,
+          100
+        ]
+      },
+      {
+        "parameters": {
+          "url": "={{ $json.result.url }}",
+          "responseFormat": "file",
+          "options": {}
+        },
+        "id": "3436334e-a1b7-4288-b869-383fc467798a",
+        "name": "Download Processed",
+        "type": "n8n-nodes-base.httpRequest",
+        "typeVersion": 2,
+        "position": [
+          340,
+          -60
+        ]
+      },
+      {
+        "parameters": {
+          "authentication": "oAuth2",
+          "binaryData": true,
+          "name": "={{ $binary.data.fileName }}",
+          "parents": [
+            "{{ $env.GDRIVE_UPLOAD_FOLDER_ID }}"
+          ],
+          "options": {}
+        },
+        "id": "8a1b0cf0-2a83-4996-b1e8-cc0ea5224f4d",
+        "name": "Upload Processed File",
+        "type": "n8n-nodes-base.googleDrive",
+        "typeVersion": 1,
+        "position": [
+          560,
+          100
+        ],
+        "credentials": {
+          "googleDriveOAuth2Api": {
+            "id": "tzsdXJ8viUF8DBm6",
+            "name": "Google Drive account"
+          }
+        }
+      },
+      {
+        "parameters": {
+          "assignments": {
+            "assignments": [
+              {
+                "name": "fileName",
+                "value": "={{ $json.name }}",
+                "type": "string"
+              },
+              {
+                "name": "title",
+                "value": "={{ $('Download Processed').item.json.result.metadata.title }}",
+                "type": "string"
+              },
+              {
+                "name": "description",
+                "value": "={{ $('Download Processed').item.json.result.metadata.description }}",
+                "type": "string"
+              },
+              {
+                "name": "tags",
+                "value": "={{ $('Download Processed').item.json.result.metadata.tags }}",
+                "type": "string"
+              }
+            ]
+          },
+          "options": {}
+        },
+        "id": "7579c508-c114-4644-bd41-31196c4dd050",
+        "name": "Edit Fields",
+        "type": "n8n-nodes-base.set",
+        "typeVersion": 3.4,
+        "position": [
+          820,
+          -20
+        ]
+      },
+      {
+        "parameters": {
+          "authentication": "oAuth2",
+          "operation": "append",
+          "sheetId": "{{ $env.SHEET_ID }}",
+          "options": {}
+        },
+        "id": "08785da3-7374-449d-8669-33945bc6a439",
+        "name": "Write in Sheet",
+        "type": "n8n-nodes-base.googleSheets",
+        "typeVersion": 1,
+        "position": [
+          1040,
+          100
+        ],
+        "credentials": {
+          "googleSheetsOAuth2Api": {
+            "id": "lqBJO7CNo5DAxR7h",
+            "name": "Google Sheets account"
+          }
+        }
+      },
+      {
+        "parameters": {
+          "operation": "deleteFile",
+          "fileId": {
+            "__rl": true,
+            "value": "={{ $('Drive Trigger (New File)').item.json.id }}",
+            "mode": "id"
+          },
+          "options": {}
+        },
+        "type": "n8n-nodes-base.googleDrive",
+        "typeVersion": 3,
+        "position": [
+          1280,
+          0
+        ],
+        "id": "fdb67b10-034d-47b7-9400-d7f7125435ba",
+        "name": "Google Drive"
+      }
+    ],
+    "connections": {
+      "Drive Trigger (New File)": {
+        "main": [
+          [
+            {
+              "node": "Download File",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Download File": {
+        "main": [
+          [
+            {
+              "node": "Upload to API",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Upload to API": {
+        "main": [
+          [
+            {
+              "node": "Download Processed",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Download Processed": {
+        "main": [
+          [
+            {
+              "node": "Upload Processed File",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Upload Processed File": {
+        "main": [
+          [
+            {
+              "node": "Edit Fields",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Edit Fields": {
+        "main": [
+          [
+            {
+              "node": "Write in Sheet",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Write in Sheet": {
+        "main": [
+          [
+            {
+              "node": "Google Drive",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      }
+    },
+    "pinData": {},
+    "meta": {
+      "instanceId": "5822e8a1f306633bca1eb6755fd0d6df1b6c6f63853ead5fdefb3576f7e7e989"
+    }
+  }
